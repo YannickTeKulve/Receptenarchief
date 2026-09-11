@@ -1,4 +1,6 @@
 ---
+import PhosphorIcon from './PhosphorIcon.astro';
+
 interface Recipe {
   id: string;
   title: string;
@@ -30,7 +32,7 @@ const base = import.meta.env.BASE_URL;
         </div>
         <span class="archive-cuisine">{recipe.cuisine || '—'}</span>
         <span class="archive-time">{recipe.time > 0 ? `${recipe.time} min` : 'tijd onbekend'}</span>
-        <span class="archive-arrow" aria-hidden="true">↗</span>
+        <span class="archive-arrow" aria-hidden="true"><PhosphorIcon name="arrow-up-right" /></span>
       </a>
     </article>
   ))}

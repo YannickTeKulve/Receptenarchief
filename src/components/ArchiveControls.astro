@@ -1,4 +1,6 @@
 ---
+import PhosphorIcon from './PhosphorIcon.astro';
+
 interface Props { total: number; }
 const { total } = Astro.props;
 ---
@@ -6,7 +8,7 @@ const { total } = Astro.props;
 <section class="archive-controls" aria-label="Recepten doorzoeken en tonen">
   <label class="search-field">
     <span class="visually-hidden">Zoek in recepten</span>
-    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+    <PhosphorIcon name="magnifying-glass" />
     <input id="recipe-search" type="search" placeholder="Zoek op recept, keuken of ingrediënt" autocomplete="off" />
   </label>
   <label class="time-filter">

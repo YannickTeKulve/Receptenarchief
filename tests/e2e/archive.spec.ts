@@ -4,6 +4,9 @@ test('archive searches, filters, and switches view', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Kies iets lekkers.' })).toBeVisible();
   await expect(page.locator('[data-recipe]:visible')).toHaveCount(19);
+  await expect(page.locator('.search-field .ph-magnifying-glass')).toBeVisible();
+  await expect(page.locator('.archive-arrow .ph-arrow-up-right')).toHaveCount(19);
+  await expect(page.locator('body')).not.toContainText('↗');
 
   await page.getByRole('searchbox', { name: 'Zoek in recepten' }).fill('alfredo');
   await expect(page.locator('[data-recipe]:visible')).toHaveCount(1);
