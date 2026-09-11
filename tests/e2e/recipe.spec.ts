@@ -17,6 +17,8 @@ test('recipe page contains cooking content and checkable ingredients', async ({ 
   await expect(firstIngredient).not.toHaveText(originalIngredient ?? '');
 
   await expect(page.getByRole('link', { name: /Bekijk het originele recept/ })).toHaveAttribute('href', /^https:\/\//);
+  await expect(page.getByRole('link', { name: /Bekijk het originele recept/ }).locator('.ph-arrow-up-right')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('↗');
 });
 
 test('unknown servings are not displayed as zero', async ({ page }) => {

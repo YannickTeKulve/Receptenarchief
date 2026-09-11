@@ -1,5 +1,6 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import PhosphorIcon from '../components/PhosphorIcon.astro';
 import SiteNav from '../components/SiteNav.astro';
 import type { RecipeData } from '../lib/recipe-schema';
 
@@ -57,7 +58,7 @@ const base = import.meta.env.BASE_URL;
       </article>
       <footer class="recipe-source">
         <span>Bron</span>
-        <a href={recipe.bron} rel="noopener noreferrer">Bekijk het originele recept <span aria-hidden="true">↗</span></a>
+        <a href={recipe.bron} rel="noopener noreferrer">Bekijk het originele recept <PhosphorIcon name="arrow-up-right" /></a>
       </footer>
     </main>
   </div>
