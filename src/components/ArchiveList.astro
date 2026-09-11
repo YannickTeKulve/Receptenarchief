@@ -1,0 +1,41 @@
+---
+interface Recipe {
+  id: string;
+  title: string;
+  cuisine: string;
+  time: number;
+  tags: string[];
+  categories: string[];
+  searchText: string;
+}
+interface Props { recipes: Recipe[]; }
+const { recipes } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<div class="archive-list" id="archive-list" data-view="list">
+  {recipes.map((recipe, index) => (
+    <article
+      class="archive-item"
+      data-recipe
+      data-search={recipe.searchText}
+      data-categories={recipe.categories.join(' ')}
+      data-time={recipe.time}
+    >
+      <a href={`${base}recepten/${recipe.id}/`}>
+        <span class="archive-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+        <div class="archive-title">
+          <h2>{recipe.title}</h2>
+          <div class="archive-tags" aria-hidden="true">{recipe.tags.slice(0, 3).map((tag) => <span>{tag}</span>)}</div>
+        </div>
+        <span class="archive-cuisine">{recipe.cuisine || '—'}</span>
+        <span class="archive-time">{recipe.time > 0 ? `${recipe.time} min` : 'tijd onbekend'}</span>
+        <span class="archive-arrow" aria-hidden="true">↗</span>
+      </a>
+    </article>
+  ))}
+</div>
+<div class="empty-state" id="empty-state" hidden>
+  <p>Geen recepten gevonden.</p>
+  <button type="button" id="clear-filters">Wis zoekopdracht en filters</button>
+</div>

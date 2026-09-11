@@ -1,0 +1,144 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ArchiveControls from '../components/ArchiveControls.astro';
+import ArchiveList from '../components/ArchiveList.astro';
+import { categoriesFor, recipeBody } from '../lib/recipes';
+
+const entries = (await getCollection('recepten')).sort((a, b) => a.data.titel.localeCompare(b.data.titel, 'nl'));
+const recipes = entries.map((recipe) => ({
+  id: recipe.id.replace(/\.md$/, ''),
+  title: recipe.data.titel,
+  cuisine: recipe.data.keuken,
+  time: recipe.data.bereidingstijd_minuten,
+  tags: recipe.data.tags,
+  categories: categoriesFor(recipe),
+  searchText: [recipe.data.titel, recipe.data.keuken, recipe.data.tags.join(' '), recipeBody(recipe)].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('nl'),
+}));
+const latestDate = entries.map((entry) => entry.data.toegevoegd_op).sort().at(-1);
+const latestDisplay = latestDate
+  ? new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${latestDate}T00:00:00Z`))
+  : '—';
+const categories = [
+  { id: 'alles', label: 'Alle recepten', count: recipes.length },
+  { id: 'pasta', label: 'Pasta', count: recipes.filter((recipe) => recipe.categories.includes('pasta')).length },
+  { id: 'oven', label: 'Uit de oven', count: recipes.filter((recipe) => recipe.categories.includes('oven')).length },
+  { id: 'vegetarisch', label: 'Vegetarisch', count: recipes.filter((recipe) => recipe.categories.includes('vegetarisch')).length },
+  { id: 'snel', label: 'Snel klaar', count: recipes.filter((recipe) => recipe.categories.includes('snel')).length },
+];
+---
+
+<BaseLayout>
+  <div class="archive-shell">
+    <aside class="archive-sidebar">
+      <a class="archive-wordmark" href={import.meta.env.BASE_URL}>
+        <span>Persoonlijk receptenarchief</span>
+        <strong>Yannicks<br />Kookboek</strong>
+      </a>
+      <nav aria-label="Receptcategorieën">
+        <p>Collectie</p>
+        {categories.map((category, index) => (
+          <button type="button" data-category={category.id} aria-pressed={index === 0 ? 'true' : 'false'}>
+            <span>{category.label}</span><small>{category.count}</small>
+          </button>
+        ))}
+      </nav>
+      <footer>
+        <span>Bijgewerkt</span>
+        <strong>{latestDisplay}</strong>
+      </footer>
+    </aside>
+
+    <main id="inhoud" class="archive-main">
+      <header class="mobile-masthead">
+        <a href={import.meta.env.BASE_URL}>Yannicks Kookboek</a>
+        <span>{recipes.length} recepten</span>
+      </header>
+      <section class="archive-intro">
+        <p class="eyebrow">Recepten om opnieuw te maken</p>
+        <h1>Kies iets<br /><em>lekkers.</em></h1>
+        <p>Een rustig archief van gerechten die het bewaren waard zijn.</p>
+      </section>
+
+      <nav class="mobile-categories" aria-label="Receptcategorieën op mobiel">
+        {categories.map((category, index) => (
+          <button type="button" data-category={category.id} aria-pressed={index === 0 ? 'true' : 'false'}>{category.label}</button>
+        ))}
+      </nav>
+
+      <ArchiveControls total={recipes.length} />
+      <ArchiveList recipes={recipes} />
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  const search = document.querySelector<HTMLInputElement>('#recipe-search');
+  const time = document.querySelector<HTMLSelectElement>('#time-filter');
+  const list = document.querySelector<HTMLElement>('#archive-list');
+  const count = document.querySelector<HTMLElement>('#visible-count');
+  const empty = document.querySelector<HTMLElement>('#empty-state');
+  const clear = document.querySelector<HTMLButtonElement>('#clear-filters');
+  const categoryButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-category]')];
+  const viewButtons = [...document.querySelectorAll<HTMLButtonElement>('button[data-view]')];
+  let category = 'alles';
+
+  const normalized = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('nl').trim();
+  const updateUrl = () => {
+    const params = new URLSearchParams();
+    if (search?.value) params.set('q', search.value);
+    if (category !== 'alles') params.set('categorie', category);
+    if (time?.value) params.set('tijd', time.value);
+    if (list?.dataset.view === 'grid') params.set('weergave', 'raster');
+    const query = params.toString();
+    history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}`);
+  };
+  const applyFilters = () => {
+    const query = normalized(search?.value ?? '');
+    const terms = query.split(/\s+/).filter(Boolean);
+    const maxTime = Number(time?.value || 0);
+    let visible = 0;
+    document.querySelectorAll<HTMLElement>('[data-recipe]').forEach((item) => {
+      const matchesQuery = terms.every((term) => (item.dataset.search ?? '').includes(term));
+      const matchesCategory = category === 'alles' || (item.dataset.categories ?? '').split(' ').includes(category);
+      const recipeTime = Number(item.dataset.time || 0);
+      const matchesTime = !maxTime || (recipeTime > 0 && recipeTime <= maxTime);
+      item.hidden = !(matchesQuery && matchesCategory && matchesTime);
+      if (!item.hidden) visible += 1;
+    });
+    if (count) count.textContent = String(visible);
+    if (empty) empty.hidden = visible > 0;
+    categoryButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.category === category)));
+    updateUrl();
+  };
+  const setView = (view: 'list' | 'grid') => {
+    if (!list) return;
+    list.dataset.view = view;
+    viewButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+    try { localStorage.setItem('receptenarchief-view', view); } catch {}
+    updateUrl();
+  };
+
+  const params = new URLSearchParams(location.search);
+  if (search) search.value = params.get('q') ?? '';
+  category = params.get('categorie') ?? 'alles';
+  if (!categoryButtons.some((button) => button.dataset.category === category)) category = 'alles';
+  if (time) time.value = params.get('tijd') ?? '';
+  let savedView: 'list' | 'grid' = 'list';
+  try { savedView = localStorage.getItem('receptenarchief-view') === 'grid' ? 'grid' : 'list'; } catch {}
+  if (params.get('weergave') === 'raster') savedView = 'grid';
+  setView(savedView);
+  applyFilters();
+
+  search?.addEventListener('input', applyFilters);
+  time?.addEventListener('change', applyFilters);
+  categoryButtons.forEach((button) => button.addEventListener('click', () => { category = button.dataset.category ?? 'alles'; applyFilters(); }));
+  viewButtons.forEach((button) => button.addEventListener('click', () => setView(button.dataset.view === 'grid' ? 'grid' : 'list')));
+  clear?.addEventListener('click', () => {
+    if (search) search.value = '';
+    if (time) time.value = '';
+    category = 'alles';
+    applyFilters();
+    search?.focus();
+  });
+</script>
