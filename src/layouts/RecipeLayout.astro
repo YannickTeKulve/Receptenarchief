@@ -1,0 +1,133 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import SiteNav from '../components/SiteNav.astro';
+import type { RecipeData } from '../lib/recipe-schema';
+
+interface Props {
+  recipe: RecipeData;
+  ingredients: string[];
+  instructions: string[];
+}
+const { recipe, ingredients, instructions } = Astro.props;
+const description = `${recipe.titel}${recipe.bereidingstijd_minuten ? ` in ${recipe.bereidingstijd_minuten} minuten` : ''}. Ingrediënten en bereidingswijze.`;
+const duration = recipe.bereidingstijd_minuten > 0 ? `PT${recipe.bereidingstijd_minuten}M` : undefined;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Recipe',
+  name: recipe.titel,
+  recipeYield: recipe.porties > 0 ? `${recipe.porties} porties` : undefined,
+  totalTime: duration,
+  recipeCuisine: recipe.keuken || undefined,
+  keywords: recipe.tags.join(', '),
+  recipeIngredient: ingredients,
+  recipeInstructions: instructions.map((text) => ({ '@type': 'HowToStep', text })),
+  isBasedOn: recipe.bron,
+};
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title={recipe.titel} description={description} jsonLd={jsonLd}>
+  <div class="recipe-site-shell">
+    <SiteNav compact />
+    <main id="inhoud" class="recipe-page">
+      <nav class="recipe-breadcrumb" aria-label="Kruimelpad">
+        <a href={base}>Recepten</a><span aria-hidden="true">/</span><span aria-current="page">{recipe.titel}</span>
+      </nav>
+      <header class="recipe-header">
+        <p class="eyebrow">{recipe.keuken || 'Uit het archief'}</p>
+        <h1>{recipe.titel}</h1>
+        <dl class="recipe-meta">
+          {recipe.bereidingstijd_minuten > 0 && <div><dt>Tijd</dt><dd>{recipe.bereidingstijd_minuten} min</dd></div>}
+          {recipe.porties > 0 && <div><dt>Voor</dt><dd><span data-portions-meta>{recipe.porties}</span> personen</dd></div>}
+          {recipe.tags.length > 0 && <div><dt>Type</dt><dd>{recipe.tags.slice(0, 2).join(' · ')}</dd></div>}
+        </dl>
+        {recipe.porties > 0 && (
+          <div class="serving-control" data-serving-control data-base-servings={recipe.porties}>
+            <span>Pas porties aan</span>
+            <div>
+              <button type="button" data-servings-decrease aria-label="Eén portie minder">−</button>
+              <output role="status" aria-label="Aantal porties" data-servings-output>{recipe.porties} personen</output>
+              <button type="button" data-servings-increase aria-label="Eén portie toevoegen">+</button>
+            </div>
+          </div>
+        )}
+      </header>
+      <article class="recipe-body" data-recipe-body>
+        <slot />
+      </article>
+      <footer class="recipe-source">
+        <span>Bron</span>
+        <a href={recipe.bron} rel="noopener noreferrer">Bekijk het originele recept <span aria-hidden="true">↗</span></a>
+      </footer>
+    </main>
+  </div>
+</BaseLayout>
+
+<script>
+  import { scaleIngredient } from '../lib/servings';
+
+  const body = document.querySelector<HTMLElement>('[data-recipe-body]');
+  if (body) {
+    const headings = [...body.querySelectorAll(':scope > h2')];
+    const ingredientsHeading = headings.find((heading) => heading.textContent?.trim().toLowerCase() === 'ingrediënten');
+    const preparationHeading = headings.find((heading) => heading.textContent?.trim().toLowerCase() === 'bereiding');
+
+    const wrapRange = (start: Element, end: Element | undefined, className: string) => {
+      const wrapper = document.createElement('section');
+      wrapper.className = className;
+      start.before(wrapper);
+      let current: Element | null = start;
+      while (current && current !== end) {
+        const next: Element | null = current.nextElementSibling;
+        wrapper.append(current);
+        current = next;
+      }
+      return wrapper;
+    };
+
+    if (ingredientsHeading && preparationHeading) {
+      const ingredients = wrapRange(ingredientsHeading, preparationHeading, 'recipe-section recipe-section--ingredients');
+      const method = wrapRange(preparationHeading, undefined, 'recipe-section recipe-section--method');
+      ingredients.querySelectorAll('ul').forEach((list) => {
+        list.classList.add('ingredient-list');
+        [...list.children].forEach((item, index) => {
+          if (!(item instanceof HTMLLIElement)) return;
+          const label = document.createElement('label');
+          label.dataset.original = item.textContent?.trim() ?? '';
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.setAttribute('aria-label', `Ingrediënt ${index + 1} afvinken`);
+          while (item.firstChild) label.append(item.firstChild);
+          item.append(input, label);
+        });
+      });
+      method.querySelector('ol')?.classList.add('preparation-list');
+      body.classList.add('recipe-body--enhanced');
+    }
+  }
+
+  const servingControl = document.querySelector<HTMLElement>('[data-serving-control]');
+  if (servingControl) {
+    const baseServings = Number(servingControl.dataset.baseServings);
+    const output = servingControl.querySelector<HTMLOutputElement>('[data-servings-output]');
+    const decrease = servingControl.querySelector<HTMLButtonElement>('[data-servings-decrease]');
+    const increase = servingControl.querySelector<HTMLButtonElement>('[data-servings-increase]');
+    const meta = document.querySelector<HTMLElement>('[data-portions-meta]');
+    let servings = baseServings;
+
+    const updateServings = () => {
+      const factor = servings / baseServings;
+      document.querySelectorAll<HTMLElement>('.ingredient-list label[data-original]').forEach((label) => {
+        label.textContent = scaleIngredient(label.dataset.original ?? '', factor);
+      });
+      if (output) output.textContent = `${servings} ${servings === 1 ? 'persoon' : 'personen'}`;
+      if (meta) meta.textContent = String(servings);
+      if (decrease) decrease.disabled = servings <= 1;
+      if (increase) increase.disabled = servings >= baseServings * 4;
+    };
+
+    decrease?.addEventListener('click', () => { servings -= 1; updateServings(); });
+    increase?.addEventListener('click', () => { servings += 1; updateServings(); });
+    updateServings();
+  }
+</script>
