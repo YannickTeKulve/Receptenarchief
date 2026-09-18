@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 test('archive searches, filters, and switches view', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Kies iets lekkers.' })).toBeVisible();
-  await expect(page.locator('[data-recipe]:visible')).toHaveCount(21);
+  await expect(page.locator('[data-recipe]:visible')).toHaveCount(22);
   await expect(page.locator('.search-field .ph-magnifying-glass')).toBeVisible();
-  await expect(page.locator('.archive-arrow .ph-arrow-up-right')).toHaveCount(21);
+  await expect(page.locator('.archive-arrow .ph-arrow-up-right')).toHaveCount(22);
   await expect(page.locator('body')).not.toContainText('↗');
 
   await page.getByRole('searchbox', { name: 'Zoek in recepten' }).fill('alfredo');
@@ -27,5 +27,5 @@ test('empty results can be cleared', async ({ page }) => {
   await page.getByRole('searchbox', { name: 'Zoek in recepten' }).fill('bestaat-niet');
   await expect(page.getByText('Geen recepten gevonden.')).toBeVisible();
   await page.getByRole('button', { name: 'Wis zoekopdracht en filters' }).click();
-  await expect(page.locator('[data-recipe]:visible')).toHaveCount(21);
+  await expect(page.locator('[data-recipe]:visible')).toHaveCount(22);
 });
